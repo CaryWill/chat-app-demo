@@ -7,7 +7,7 @@ const cors = require("cors");
 
 app.use(cors());
 
-app.get("/", (req, res) => {
+app.get("/", () => {
   res.json({
     message: "Hello world",
   });
@@ -28,10 +28,6 @@ wss.on("connection", function (ws) {
   console.log(`[SERVER] connection()`);
   ws.on("message", function (message) {
     console.log(`[SERVER] Received: ${message}`);
-    ws.send(`ECHO: ${message}`, (err) => {
-      if (err) {
-        console.log(`[SERVER] error: ${err}`);
-      }
-    });
+    ws.send(`ECHO: ${message}`);
   });
 });

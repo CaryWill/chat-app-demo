@@ -1,21 +1,33 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState, useRef } from "react";
+import "./index.css";
 
 export default function App() {
+  const [latestMsg, setLatestMsg] = useState("empty");
+  const { current: ws } = useRef(new WebSocket("ws://localhost:8888"));
   useEffect(() => {
-    // 打开一个WebSocket:
-    var ws = new WebSocket("ws://localhost:8888/im");
-    // 响应onmessage事件:
-    ws.onmessage = function (msg) {
-      console.log(msg);
+    ws.onopen = function (msg) {
+      ws.send("Hello Server!");
     };
-    // 给服务器发送一个字符串:
-    setTimeout(() => {
-      ws.send("Hello!");
-    }, 1000);
+
+    ws.onmessage = function (msg) {
+      setLatestMsg(msg.data);
+    };
   }, []);
   return (
-    <div>
-      <p>Hello World!</p>
+    <div className="container">
+      <div className="member-list"></div>
+      <div className="chat-area">
+        <div className="content">{latestMsg}</div>
+        <input
+          placeholder="input here"
+          className="type-here"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              ws.send(e.target.value);
+            }
+          }}
+        />
+      </div>
     </div>
   );
 }
