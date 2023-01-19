@@ -7,7 +7,7 @@ const cors = require("cors");
 
 app.use(cors());
 
-app.get("/", () => {
+app.get("/", (req, res) => {
   res.json({
     message: "Hello world",
   });
@@ -29,5 +29,7 @@ wss.on("connection", function (ws) {
   ws.on("message", function (message) {
     console.log(`[SERVER] Received: ${message}`);
     ws.send(`ECHO: ${message}`);
+    ws.ping("ping");
   });
+  ws.on("pong", (ping) => console.log(`ping received, ${ping}`));
 });
