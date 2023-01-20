@@ -21,15 +21,17 @@ http.listen(PORT, () => {
 const WebSocket = require("ws");
 const WebSocketServer = WebSocket.Server;
 const wss = new WebSocketServer({
-  port: 8888,
+  port: 9876,
 });
 
 wss.on("connection", function (ws) {
   console.log(`[SERVER] connection()`);
   ws.on("message", function (message) {
-    console.log(`[SERVER] Received: ${message}`);
-    ws.send(`ECHO: ${message}`);
-    ws.ping("ping");
+    if (message.toString("utf8") === "hb") {
+      ws.send("hb");
+    }
+    // ws.ping("ping");
+    ws.send(`echo: ${message}`);
   });
-  ws.on("pong", (ping) => console.log(`ping received, ${ping}`));
+  // ws.on("pong", (ping) => console.log(`ping received, ${ping}`));
 });

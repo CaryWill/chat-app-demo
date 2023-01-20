@@ -1,7 +1,7 @@
 ## TODO
 
-1. reconnect ws
-
-  很多时候出现的问题都是前端没有收到后端推送的消息。
-  1. ws 没断，但是消息丢失了，（可能是弱网？），后端需要重新推送。
-  2. ws 断了。前端需要重新建立 ws 连接，后端需要重新推送消息。
+[x] reconnect ws
+    - ~~ websocket connection died, need reconnect.~~
+[ ] resend message(Most problems are caused by not receiving messages from the other end.)
+    - frontend
+    - backend
