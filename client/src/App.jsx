@@ -18,7 +18,6 @@ const calculateReconnectTime = (reconnectCount) => {
     5000 + randomNumberMilliseconds
   );
 
-  console.log("retry after", retryAfter);
   return retryAfter;
 };
 
@@ -27,15 +26,13 @@ class Connection {
   ws = null;
   keepAliveTimer = null;
   timeoutTimer = null;
-  config = {
-    maxRetryCount: 5,
-  };
   reconnectingTimer = null;
 
-  reset() {
-    this.retryCount = 0;
-    this.ws = null;
-    this.clearTimers();
+  constructor(config = {}) {
+    this.config = {
+      maxRetryCount: 5,
+      ...config,
+    };
   }
 
   clearTimers() {
@@ -51,6 +48,12 @@ class Connection {
     this.reconnectingTimer = null;
   }
 
+  reset() {
+    this.retryCount = 0;
+    this.ws = null;
+    this.clearTimers();
+  }
+
   keepAlive() {
     this.keepAliveTimer = setInterval(() => {
       this.ws.send("hb");
@@ -63,8 +66,8 @@ class Connection {
   }
 
   open() {
-    console.log("open");
     this.ws = new WebSocket("ws://localhost:9876/talk");
+    console.log("open() called");
     this.ws.onopen = () => {
       this.ws.send("open");
       // 重连/连接成功了，重置重连相关配置
@@ -111,11 +114,12 @@ class Connection {
     this.retryCount += 1;
     // 这里不需要在建立新的 ws 连接前手动 `this.ws.close()`
     // 因为已经是 onclose 事件了，说明 ws 已经断掉了
+    const retryAfter = calculateReconnectTime(this.retryCount);
     this.reconnectingTimer = setTimeout(() => {
-      console.log(`reconecting x ${this.retryCount}`);
+      console.log(`reconecting x ${this.retryCount}, ${retryAfter}s passed.`);
       this.open();
       this.reconnectingTimer = null;
-    }, calculateReconnectTime(this.retryCount));
+    }, retryAfter);
   }
 
   close() {
