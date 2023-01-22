@@ -29,9 +29,10 @@ wss.on("connection", function (ws) {
   ws.on("message", function (message) {
     if (message.toString("utf8") === "hb") {
       ws.send("hb");
+    } else {
+      ws.send(`echo: ${message}`);
     }
     // ws.ping("ping");
-    ws.send(`echo: ${message}`);
   });
   // ws.on("pong", (ping) => console.log(`ping received, ${ping}`));
 });

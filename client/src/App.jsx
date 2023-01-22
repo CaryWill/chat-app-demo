@@ -6,6 +6,22 @@ const NORMAL_CLOSE_CODE = 1000;
 // 默认消息发送的超时时间，超过 5 秒无响应则认为失败
 const SEND_FAIL_TIMEOUT = 5 * 1000;
 
+// 重连时间需要动态计算以免所有 clients 同时重连对后端进行了 DDos
+const calculateReconnectTime = (reconnectCount) => {
+  // 如果请求失败，等待 1 + random_number_milliseconds 秒之后再重试请求。
+  // 如果请求失败，等待 2 + random_number_milliseconds 秒之后再重试请求。
+  // 如果请求失败，等待 4 + random_number_milliseconds 秒之后再重试请求。
+  // 依此类推，等待时间的上限为 maximum_backoff。
+  const randomNumberMilliseconds = Math.random() * 1000;
+  const retryAfter = Math.min(
+    2 ** (reconnectCount - 1) * 1000 + randomNumberMilliseconds,
+    5000 + randomNumberMilliseconds
+  );
+
+  console.log("retry after", retryAfter);
+  return retryAfter;
+};
+
 class Connection {
   retryCount = 0;
   maxRetryCount = 5;
@@ -52,6 +68,8 @@ class Connection {
       if (data === "hb") {
         console.log(msg, typeof msg, "test");
         if (this.timeoutTimer !== null) clearTimeout(this.timeoutTimer);
+      } else {
+        console.log(msg);
       }
     };
 
@@ -74,7 +92,7 @@ class Connection {
         setTimeout(() => {
           this.open();
           console.log(`reconecting x ${this.retryCount}`);
-        }, this.retryCount * 1000);
+        }, calculateReconnectTime(this.retryCount));
       }
     };
 
