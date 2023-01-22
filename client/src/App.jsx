@@ -25,45 +25,41 @@ const calculateReconnectTime = (reconnectCount) => {
 class Connection {
   retryCount = 0;
   ws = null;
-  isClosedBySelf = false;
   keepAliveTimer = null;
   timeoutTimer = null;
-  initialConfig = {
+  config = {
     maxRetryCount: 5,
   };
-  config = {};
-
-  constructor(config = {}) {
-    this.config = { ...this.initialConfig, ...config };
-  }
 
   reset() {
     this.retryCount = 0;
     this.ws = null;
-    this.isClosedBySelf = false;
+    this.clearTimers();
+  }
+
+  clearTimers() {
+    clearInterval(this.keepAliveTimer);
     this.keepAliveTimer = null;
+    clearTimeout(this.timeoutTimer);
     this.timeoutTimer = null;
-    this.config = { ...this.initialConfig };
   }
 
   keepAlive() {
-    if (this.keepAliveTimer === null) {
-      this.keepAliveTimer = setInterval(() => {
-        this.ws.send("hb");
-        this.timeoutTimer = setTimeout(() => {
-          // 默认 5s 没有就关闭重连
-          this.ws.close();
-        }, SEND_FAIL_TIMEOUT);
-      }, 6000);
-    } else {
-      clearInterval(this.keepAliveTimer);
-    }
+    this.keepAliveTimer = setInterval(() => {
+      this.ws.send("hb");
+      this.timeoutTimer = setTimeout(() => {
+        // 默认 5s 没有就关闭重连
+        console.log("initalt close");
+        this.ws.close();
+      }, SEND_FAIL_TIMEOUT);
+    }, 6000);
   }
 
   open() {
     this.ws = new WebSocket("ws://localhost:9876/talk");
     this.ws.onopen = () => {
       this.ws.send("open");
+      // 重连/连接成功了，重置重连相关配置
       this.retryCount = 0;
       this.keepAlive();
     };
@@ -71,7 +67,6 @@ class Connection {
     this.ws.onmessage = (msg) => {
       const { data } = msg;
       if (data === "hb") {
-        console.log(msg, typeof msg, "test");
         if (this.timeoutTimer !== null) clearTimeout(this.timeoutTimer);
       } else {
         console.log(msg);
@@ -80,35 +75,43 @@ class Connection {
 
     this.ws.onclose = (event) => {
       const { code, reason, wasClean } = event;
-      console.error(
-        `Connection closed, code: ${code}, reason: ${reason}, wasClean: ${wasClean}`
-      );
-      if (this.retryCount >= this.config.maxRetryCount) {
-        console.error("unable to make a connection!");
+      console.error(`Connection closed, code: ${code}`);
+      // 正常断开
+      if (code === NORMAL_CLOSE_CODE) {
+        console.log("normal close");
+        this.reset();
       } else {
-        if (code === NORMAL_CLOSE_CODE || this.isClosedBySelf) {
-          // 正常断开
-          return this.reset();
-        }
-        // TODO: 重连要不要加一个锁
-        this.retryCount += 1;
-        // 这里不需要在建立新的 ws 连接前手动 `this.ws.close()`
-        // 因为已经是 onclose 事件了，说明 ws 已经断掉了
-        setTimeout(() => {
-          this.open();
-          console.log(`reconecting x ${this.retryCount}`);
-        }, calculateReconnectTime(this.retryCount));
+        return this.reconnect();
       }
     };
 
     this.ws.onerror = () => {
       console.error("ws connected error!");
+      // this.reconnect();
     };
+  }
+
+  // 需要加锁，onerror 和 onclose 都触发的话需要加一个锁，
+  // 只需要保证执行了一次断线重连即可
+  reconnect() {
+    this.clearTimers();
+    if (this.retryCount >= this.config.maxRetryCount) {
+      // 不再重连
+      console.error("unable to make a connection!");
+      return this.close();
+    }
+    this.retryCount += 1;
+    // 这里不需要在建立新的 ws 连接前手动 `this.ws.close()`
+    // 因为已经是 onclose 事件了，说明 ws 已经断掉了
+    setTimeout(() => {
+      console.log(`reconecting x ${this.retryCount}`);
+      this.open();
+    }, calculateReconnectTime(this.retryCount));
   }
 
   close() {
     this.ws.close(1000);
-    this.isClosedBySelf = true;
+    // 因为异步的所以不能再这里调用 `this.reset`
   }
 }
 export default function App() {
