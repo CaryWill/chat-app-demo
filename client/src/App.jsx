@@ -30,6 +30,7 @@ class Connection {
   config = {
     maxRetryCount: 5,
   };
+  reconnectingTimer = null;
 
   reset() {
     this.retryCount = 0;
@@ -42,6 +43,12 @@ class Connection {
     this.keepAliveTimer = null;
     clearTimeout(this.timeoutTimer);
     this.timeoutTimer = null;
+    // 如果还没有重连就被清掉的话
+    if (this.reconnectingTimer) {
+      this.retryCount -= 1;
+    }
+    clearTimeout(this.reconnectingTimer);
+    this.reconnectingTimer = null;
   }
 
   keepAlive() {
@@ -56,6 +63,7 @@ class Connection {
   }
 
   open() {
+    console.log("open");
     this.ws = new WebSocket("ws://localhost:9876/talk");
     this.ws.onopen = () => {
       this.ws.send("open");
@@ -87,7 +95,7 @@ class Connection {
 
     this.ws.onerror = () => {
       console.error("ws connected error!");
-      // this.reconnect();
+      this.reconnect();
     };
   }
 
@@ -103,9 +111,10 @@ class Connection {
     this.retryCount += 1;
     // 这里不需要在建立新的 ws 连接前手动 `this.ws.close()`
     // 因为已经是 onclose 事件了，说明 ws 已经断掉了
-    setTimeout(() => {
+    this.reconnectingTimer = setTimeout(() => {
       console.log(`reconecting x ${this.retryCount}`);
       this.open();
+      this.reconnectingTimer = null;
     }, calculateReconnectTime(this.retryCount));
   }
 
