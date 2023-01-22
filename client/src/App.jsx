@@ -24,21 +24,26 @@ const calculateReconnectTime = (reconnectCount) => {
 
 class Connection {
   retryCount = 0;
-  maxRetryCount = 5;
   ws = null;
   isClosedBySelf = false;
   keepAliveTimer = null;
   timeoutTimer = null;
+  initialConfig = {
+    maxRetryCount: 5,
+  };
+  config = {};
 
-  constructor(config) {}
+  constructor(config = {}) {
+    this.config = { ...this.initialConfig, ...config };
+  }
 
   reset() {
-    // TODO: 抽离到一个对象方便直接 reset
     this.retryCount = 0;
     this.ws = null;
     this.isClosedBySelf = false;
     this.keepAliveTimer = null;
     this.timeoutTimer = null;
+    this.config = { ...this.initialConfig };
   }
 
   keepAlive() {
@@ -78,7 +83,7 @@ class Connection {
       console.error(
         `Connection closed, code: ${code}, reason: ${reason}, wasClean: ${wasClean}`
       );
-      if (this.retryCount >= this.maxRetryCount) {
+      if (this.retryCount >= this.config.maxRetryCount) {
         console.error("unable to make a connection!");
       } else {
         if (code === NORMAL_CLOSE_CODE || this.isClosedBySelf) {
