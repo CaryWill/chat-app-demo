@@ -5,4 +5,4 @@
 [ ] resend message(Most problems are caused by not receiving messages from the other end.)
     - frontend
     - backend
-[ ] - multi-client support
+[x] - ~~multi-client support~~(if you wants group chat)

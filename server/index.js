@@ -30,6 +30,16 @@ wss.on("connection", function (ws) {
     if (message.toString("utf8") === "hb") {
       ws.send("hb");
     } else {
+      /** group chat
+        * if you wants group chat, then use 
+        * wss.clients getting all connected
+        * clients to broadcast the message
+       wss.clients.forEach((client) => {
+         client.send(`echo: ${message}`);
+       });
+      **/
+    
+      // one on one chat
       ws.send(`echo: ${message}`);
     }
     // ws.ping("ping");
