@@ -21,6 +21,7 @@ const calculateReconnectTime = (reconnectCount) => {
   return retryAfter;
 };
 
+// FIXME: emit/sub
 class Connection {
   retryCount = 0;
   ws = null;
@@ -65,8 +66,8 @@ class Connection {
     }, 6000);
   }
 
-  open() {
-    this.ws = new WebSocket("ws://localhost:9876/talk");
+  open(onmessage) {
+    this.ws = new WebSocket(`ws://localhost:9876/talk${location.search}`);
     console.log("open() called");
     this.ws.onopen = () => {
       this.ws.send("open");
@@ -80,7 +81,7 @@ class Connection {
       if (data === "hb") {
         if (this.timeoutTimer !== null) clearTimeout(this.timeoutTimer);
       } else {
-        console.log(msg);
+        onmessage(data.toString());
       }
     };
 
@@ -129,11 +130,12 @@ class Connection {
 }
 export default function App() {
   const [latestMsg, setLatestMsg] = useState("empty");
-  let { current: connection } = useRef(null);
+  // NOTE: { current: connection } = useRef(null) 不行
+  const connection = useRef(null);
 
   useEffect(() => {
-    connection = new Connection();
-    connection.open();
+    connection.current = new Connection();
+    connection.current.open(setLatestMsg);
   }, []);
 
   return (
@@ -146,7 +148,8 @@ export default function App() {
           className="type-here"
           onKeyDown={(e) => {
             if (e.key === "Enter") {
-              connection.ws.send(e.target.value);
+              if (!connection.current) return;
+              connection.current.ws.send(e.target.value);
             }
           }}
         />

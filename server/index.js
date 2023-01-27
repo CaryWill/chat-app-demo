@@ -21,39 +21,70 @@ httpServer.listen(PORT, () => {
 // const WebSocket = require("ws");
 const { WebSocketServer } = require("ws");
 const { createServer } = require("http");
+const { isServicer } = require("./utils");
 
 const server = createServer();
 const wss = new WebSocketServer({ noServer: true });
 server.on("upgrade", function upgrade(request, socket, head) {
-  console.log(request.url);
   wss.handleUpgrade(request, socket, head, function done(ws) {
     wss.emit("connection", ws, request);
   });
 });
 server.listen(9876);
 
-const servicer = [];
-const customer = [];
+const servicers = [];
+const customers = [];
 // TODO: customer to servicer
+// TODO: destroy when page leaving
+const mapping = new Map();
 wss.on("connection", function (ws, request) {
-  console.log(`[SERVER] connection()`, request.url);
-  ws.on("message", function (message) {
-    if (message.toString("utf8") === "hb") {
-      ws.send("hb");
-    } else {
-      /** group chat
+  // TOOD: 鉴权
+  const isCustomer = !isServicer(request.url);
+  if (isCustomer) {
+    customers.push(ws);
+    const servicer = servicers.shift();
+    mapping.set(ws, servicer);
+    mapping.set(servicer, ws);
+    if (!servicer) {
+      // 没有坐席在线就不让转人工
+      return ws.close();
+    }
+    ws.on("message", function (message) {
+      if (message.toString("utf8") === "hb") {
+        ws.send("hb");
+      } else {
+        /** group chat
         * if you wants group chat, then use 
         * wss.clients getting all connected
         * clients to broadcast the message
-       wss.clients.forEach((client) => {
-         client.send(`echo: ${message}`);
-       });
-      **/
+         wss.clients.forEach((client) => {
+           client.send(`echo: ${message}`);
+         });
+        **/
 
-      // one on one chat
-      ws.send(`echo: ${message}`);
-    }
-    // ws.ping("ping");
-  });
+        // one on one chat
+        // FIXME: 中间人功能（监听) loop servicers
+        servicer.send(`${message.toString("utf8")}`);
+      }
+    });
+    // TODO: 结束会话后清楚两者的联系
+    ws.on("close", function () {
+      // mapping.delete(ws);
+      // mapping.delete(servicer);
+    });
+  } else {
+    servicers.push(ws);
+    ws.on("message", function (message) {
+      if (message.toString("utf8") === "hb") {
+        ws.send("hb");
+      } else {
+        console.log(message.toString());
+        const customer = mapping.get(ws);
+        if (!customer) return;
+        customer.send(`${message.toString("utf8")}`);
+      }
+      // ws.ping("ping");
+    });
+  }
   // ws.on("pong", (ping) => console.log(`ping received, ${ping}`));
 });
