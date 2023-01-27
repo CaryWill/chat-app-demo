@@ -18,7 +18,6 @@ httpServer.listen(PORT, () => {
 });
 
 // FIXME: 刷新页面就直接变成新的用户了
-// const WebSocket = require("ws");
 const { WebSocketServer } = require("ws");
 const { createServer } = require("http");
 const { isServicer } = require("./utils");
@@ -34,7 +33,6 @@ server.listen(9876);
 
 const servicers = [];
 const customers = [];
-// TODO: customer to servicer
 // TODO: destroy when page leaving
 const mapping = new Map();
 wss.on("connection", function (ws, request) {
@@ -42,13 +40,6 @@ wss.on("connection", function (ws, request) {
   const isCustomer = !isServicer(request.url);
   if (isCustomer) {
     customers.push(ws);
-    const servicer = servicers.shift();
-    mapping.set(ws, servicer);
-    mapping.set(servicer, ws);
-    if (!servicer) {
-      // 没有坐席在线就不让转人工
-      return ws.close();
-    }
     ws.on("message", function (message) {
       if (message.toString("utf8") === "hb") {
         ws.send("hb");
@@ -62,15 +53,17 @@ wss.on("connection", function (ws, request) {
          });
         **/
 
-        // one on one chat
-        // FIXME: 中间人功能（监听) loop servicers
+        // 没有坐席在线就不让转人工
+        let servicer = mapping.get(ws);
+        if (!servicer && servicers.length > 0) {
+          servicer = servicers.shift();
+          mapping.set(ws, servicer);
+          mapping.set(servicer, ws);
+        }
+
+        if (!servicer) return;
         servicer.send(`${message.toString("utf8")}`);
       }
-    });
-    // TODO: 结束会话后清楚两者的联系
-    ws.on("close", function () {
-      // mapping.delete(ws);
-      // mapping.delete(servicer);
     });
   } else {
     servicers.push(ws);
@@ -86,5 +79,7 @@ wss.on("connection", function (ws, request) {
       // ws.ping("ping");
     });
   }
+  ws.on("close", (code) => {
+  });
   // ws.on("pong", (ping) => console.log(`ping received, ${ping}`));
 });
